@@ -3,17 +3,20 @@ import copy
 
 class TreeNode:
     def __init__(self, parent, puzzle, cost, h_n):
-        self.parent = parent
-        self.puzzle = puzzle
-        self.cost = cost # G(n)
-        self.h_n = h_n # H(n)
+        self.parent = parent # Referring to parent node
+        self.puzzle = puzzle # Current puzzle
+        self.cost = cost # G(n) - cost of path to reach current node
+        self.h_n = h_n # H(n) - heuristic value
 
+    # Compare cost of two nodes
     def __lt__(self, other):
         return self.cost < other.cost
     
+    # Covert puzzle to tuple format
     def puzzle_to_tuple(self):
         return tuple(tuple(row) for row in self.puzzle)
     
+    # Find blank space in puzzle
     def blank(self):
         for i in range(3):
             for j in range(3):
@@ -21,32 +24,37 @@ class TreeNode:
                     return i, j
         return
     
+    # Generate neighbors of current node
     def get_neighbors(self, heuristic):
         neighbors = []
-        r, c = self.blank()
+        r, c = self.blank() # Find row and column of blank space
         moves = [(0, -1), (0, 1), (-1, 0), (1, 0)] # left, right, up, down
 
+        # Try all possible moves
         for dr, dc in moves:
             new_r, new_c = r + dr, c + dc
-            if 0 <= new_r < 3 and 0 <= new_c < 3:
-                new_puzzle = copy.deepcopy(self.puzzle)
-                new_puzzle[r][c], new_puzzle[new_r][new_c] = new_puzzle[new_r][new_c], new_puzzle[r][c]
-                new_cost = self.cost + 1
+            if 0 <= new_r < 3 and 0 <= new_c < 3: # Making sure move is within bounds
+                new_puzzle = copy.deepcopy(self.puzzle) # Create copy of puzzle
+                new_puzzle[r][c], new_puzzle[new_r][new_c] = new_puzzle[new_r][new_c], new_puzzle[r][c] # Swap blank with tile
+                new_cost = self.cost + 1 # Increment cost by 1
 
+                # Calculate heuristic value for new puzzle, depending on which one
                 new_h_n = 0
-
                 if heuristic == "Misplaced Tile Heuristic":
                     new_h_n = misplaced_tile_heuristic(new_puzzle)
                 elif heuristic == "Manhattan Distance Heuristic":
                     new_h_n = manhattan_distance_heuristic(new_puzzle)                
 
+                # Create new node with new puzzle, cost, and heuristic value, and add to list
                 neighbor_node = TreeNode(self, new_puzzle, new_cost, new_h_n)
                 neighbors.append(neighbor_node)
         return neighbors
 
+# Main function
 def main():
     puzzle_type = input("Welcome to my 8-Puzzle Solver! \nType \'1\' to use a default puzzle.\nType \'2\' to create your own.\n")
     
+    # Keeps asking for input until valid input is given
     while puzzle_type not in ('1', '2'):
         print("INVALID INPUT. Please enter '1' or '2':")
         puzzle_type = input("\nType \'1\' to use a default puzzle.\nType \'2\' to create your own.\n")
@@ -59,6 +67,7 @@ def main():
     return
 
 
+# Function to select difficulty of puzzle
 def puzzle_difficulty():
     selected_difficulty = input("You wish to use a default puzzle.\nPlease enter a desired difficulty on a scale from 1 to 5." + '\n')
     if selected_difficulty == "1":
@@ -77,7 +86,7 @@ def puzzle_difficulty():
         print("\nDifficulty of 'Oh Boy' selected.")
         return oh_boy
 
-
+# Function to create custom puzzle
 def create_puzzle():
     while True:
         print("\nEnter your puzzle, using a zero to represent the blank.\nPlease only enter valid 8-puzzles.\nEnter the puzzle separating the numbers with a space.\n")
@@ -102,13 +111,13 @@ def create_puzzle():
             print("INVALID PUZZLE. TRY AGAIN.")
     return user_puzzle
 
-
+# Function to print puzzle
 def print_puzzle(puzzle):
     for i in range(0, 3):
         print(puzzle[i])
     print('\n')
 
-
+# Function to select algorithm
 def select_algorithm(puzzle):
     algorithm = input("Select algorithm.\n(1) for Uniform Cost Search\n(2) for Misplaced Tile Heuristic\n(3) the Manhattan Distance Heuristic.\n")
     while algorithm not in ('1', '2', '3'):
@@ -118,6 +127,7 @@ def select_algorithm(puzzle):
     h_n = 0
     initial_node = TreeNode(None, puzzle, 0, h_n)
 
+    # Call uniform cost search based on selected algorithm
     if algorithm == '1':
         uniform_cost_search(puzzle, 0, "Uniform Cost Search")
     elif algorithm == '2':
@@ -125,7 +135,7 @@ def select_algorithm(puzzle):
     else:
         uniform_cost_search(puzzle, manhattan_distance_heuristic(puzzle), "Manhattan Distance Heuristic")
 
-
+# Function to check if puzzle is valid
 def is_valid_puzzle(puzzle):
     # Check for duplicates
     flattened = [num for row in puzzle for num in row]
@@ -141,57 +151,31 @@ def is_valid_puzzle(puzzle):
     
     return inversions % 2 == 0
 
-
+# Check if puzzle is goal state
 def is_goal_state(puzzle):
     return puzzle == eight_goal_state
 
-
-def valid_neighbors(puzzle):
-    neighbors = []
-    r, c = 0, 0
-    for i in range(3):
-        for j in range(3):
-            if puzzle[i][j] == 0:
-                r, c = i, j
-                break
-
-    moves = [(0, -1), (0, 1), (-1, 0), (1, 0)] # left, right, up, down
-
-    for dr, dc in moves:
-        new_r, new_c = r + dr, c + dc
-        if 0 <= new_r < 3 and 0 <= new_c < 3:
-            new_puzzle = copy.deepcopy(puzzle)
-            new_puzzle[r][c], new_puzzle[new_r][new_c] = new_puzzle[new_r][new_c], new_puzzle[r][c]
-            neighbors.append(new_puzzle)
-    return neighbors
-
-def reconstruct_path(node):
-    path = []
-    while node:
-        path.append(node.puzzle)
-        node = node.parent
-    return path[::-1]
-
+# Uniform cost search algorithm
 def uniform_cost_search(initial, h_n, h_n_name):
-    initial_node = TreeNode(None, initial, 0, h_n)
-    current_queue = []
-    repeated_states = {}
-    heapq.heappush(current_queue, initial_node)
-    num_nodes_expanded = 0
-    max_queue_size = 0
+    initial_node = TreeNode(None, initial, 0, h_n) # Create initial node w/ cost 0 and initial heuristic value
+    current_queue = [] # Priority queue to hold nodes to be explored
+    repeated_states = {} # Dictionary to keep track of repeated states
+    heapq.heappush(current_queue, initial_node) # Push initial node to queue
+    num_nodes_expanded = 0  # Number of nodes expanded
+    max_queue_size = 0 # To Track maximum queue size
 
-    repeated_states[initial_node.puzzle_to_tuple()] = initial_node.cost
+    repeated_states[initial_node.puzzle_to_tuple()] = initial_node.cost # Mark initial puzzle as visited
 
     while current_queue:
-        max_queue_size = max(max_queue_size, len(current_queue))
-        current_node = heapq.heappop(current_queue)
+        max_queue_size = max(max_queue_size, len(current_queue)) # Track maximum size of queue
+        current_node = heapq.heappop(current_queue) # Pop node with lowest cost
 
-        if is_goal_state(current_node.puzzle):
-            solution_path = []
+        if is_goal_state(current_node.puzzle): # Check if goal state is reached
+            solution_path = [] # Reconstruct solution path
             while current_node:
-                solution_path.append(current_node)
-                current_node = current_node.parent
-            solution_path.reverse()
+                solution_path.append(current_node) # Add node to solution path
+                current_node = current_node.parent  # Move to parent node
+            solution_path.reverse()     # Reverse solution path to get correct order
             for node in solution_path:
                 print("The best state to expand with a g(n) = 1 and h(n) = ", node.h_n, " is...")
                 print_puzzle(node.puzzle)
@@ -201,13 +185,14 @@ def uniform_cost_search(initial, h_n, h_n_name):
             return solution_path
         num_nodes_expanded += 1
 
+        # Generate neighbors of current node
         for neighbor in current_node.get_neighbors(h_n_name):
             neighbor_tuple = neighbor.puzzle_to_tuple()
             if neighbor_tuple not in repeated_states or neighbor.cost < repeated_states[neighbor_tuple]:
                 repeated_states[neighbor_tuple] = neighbor.cost
                 heapq.heappush(current_queue, neighbor)
 
-
+# Heuristic for counting misplaced tiles
 def misplaced_tile_heuristic(initial):
     sum = 0
     for i in range(3):
@@ -216,19 +201,20 @@ def misplaced_tile_heuristic(initial):
                 sum += 1
     return sum
 
-
+# Heuristic for calculating Manhattan distance
 def manhattan_distance_heuristic(initial):
     distance = 0
     for i in range(3):
         for j in range(3):
             tile = initial[i][j]
             if tile != 0:
-                r_goal, c_goal = divmod(tile - 1, 3)
+                r_goal, c_goal = divmod(tile - 1, 3) # Find goal position for tile
                 distance += abs(i - r_goal) + abs(j - c_goal)
     return distance
 
 ###
 
+# Default puzzles
 trivial = [[1, 2, 3],
            [4, 5, 6],
            [7, 8, 0]]
@@ -250,4 +236,5 @@ eight_goal_state = [[1, 2, 3],
 
 ###
 
+# Main function call
 main()
